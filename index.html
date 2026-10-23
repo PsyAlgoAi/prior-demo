@@ -354,6 +354,7 @@
 <script src="data.js"></script>
 <script src="walkthrough.js"></script>
 <script src="live.js"></script>
+<script src="model.js"></script>
 <script>
 (function(){
   const D = window.PRIOR;
@@ -612,7 +613,21 @@
       <div class="egs"><span class="lb">or try</span>${EGS.map(([rp,n,d])=>
         `<button data-eg="${rp}|${n}" title="${esc(d)}">${esc(rp)}#${n}</button>`).join('')}</div>
 
-      <details class="tok"><summary>Hitting the rate limit? Add a GitHub token</summary>
+      <details class="tok" ${r.useModel?'open':''}>
+        <summary><strong style="color:var(--ember)">Use a real model for the last step</strong>
+          &nbsp;&middot;&nbsp; paste an Anthropic API key</summary>
+        <input id="key" type="password" placeholder="sk-ant-…" aria-label="Anthropic API key"
+          autocomplete="off" value="${esc(r.key||'')}">
+        <p>Without a key the last step runs rules, which can only point at where a
+        decision probably is. With one, <b>${esc(window.PriorModel.MODEL)}</b> reads the
+        thread and returns what was actually decided, or returns nothing, which is the
+        right answer for most pull requests.<br><br>
+        The key stays in this tab and is sent to api.anthropic.com and nowhere else.
+        <b>This page has no server.</b> One run costs a few cents. Use a key with a low
+        spend limit, and revoke it when you are done.</p>
+      </details>
+
+      <details class="tok"><summary>Hitting the GitHub rate limit? Add a GitHub token</summary>
         <input id="tok" type="password" placeholder="ghp_… (optional)"
           aria-label="GitHub token" autocomplete="off">
         <p>Unauthenticated GitHub allows 60 requests an hour and one run uses four. A
@@ -632,15 +647,17 @@
         else, something measured, a condition set for changing the answer. That points at
         <em>where</em> a decision probably is. <b>Turning it into a record of what was
         actually decided is the model's job, and this page has no model.</b><br><br>
-        So these are labelled candidates. In the shipped product a small fine-tuned model
-        reads each one and returns the choice, the reason and what was ruled out, or
-        returns nothing at all, which is the correct answer for most threads.
+        So these are labelled candidates. <b>Add an API key above and the last step runs
+        for real:</b> the model reads the thread and returns the choice, the reason and
+        what was ruled out, or returns nothing at all, which is the correct answer for
+        most threads.
       </div>`;
   }
 
   function liveResults(out){
     if(out.repoScan) return repoResults(out.repoScan);
     const { doc, decisions } = out;
+    if(out.fromModel) return modelResults(doc, decisions);
     if(!decisions.length){
       return `<div class="empty">
         <h3>Nothing in this discussion decided anything</h3>
@@ -668,6 +685,50 @@
             decision record</b> with the choice, the rationale and what was ruled out.
             The rules here can only point at where one probably is.</p>
         </div>`).join('') + `</div>`;
+  }
+
+
+  function modelResults(doc, ds){
+    const head = `<h2>${window.PriorModel.MODEL} read ${esc(doc.repo)} #${doc.number}</h2>`;
+    if(!ds.length) return head + `<div class="empty">
+      <h3>The model found no decision in this discussion</h3>
+      <p>It was told that returning nothing is the correct answer when a thread only
+      contains corrections and style preferences. <b>That is most threads.</b></p>
+      <p>A model that always finds something is useless, which is why the training data
+      has to contain empty cases too.</p></div>`;
+
+    const badge = { adopted:'adopted', rejected:'rejected',
+                    temporary:'temporary', deferred:'superseded' };
+    return head + `<div class="list">` + ds.map(d => `
+      <div class="row" style="cursor:default" aria-expanded="true">
+        <span><span class="t">${esc(d.statement)}</span>
+        <span class="m">${esc((d.scope||[])[0] || 'not anchored')}</span></span>
+        <span class="tags">
+          ${d.alternatives?.length?`<span class="pill rejected">${d.alternatives.length} ruled out</span>`:''}
+          <span class="pill ${badge[d.status]||'superseded'}">${esc(d.status)}</span>
+        </span>
+      </div>
+      <div class="detail">
+        ${d.rationale?`<h3>Why</h3><p class="because">${esc(d.rationale)}</p>`
+                     :`<h3>Why</h3><p class="because" style="color:var(--faint)">
+                       The thread never said. <b>Recorded as unknown rather than invented.</b></p>`}
+        ${d.alternatives?.length?`<h3>Ruled out</h3>` + d.alternatives.map(a =>
+          `<div class="alt"><span class="x">${a.outcome==='chosen'?'&check;':'&times;'}</span>
+            <span><strong>${esc(a.option)}</strong>${a.reason?
+            `<span class="w"> &nbsp;${esc(a.reason)}</span>`:''}</span></div>`).join(''):''}
+        ${d.revisit_if?`<h3>Reopen when</h3><div class="revisit">${esc(d.revisit_if)}</div>`:''}
+        ${d.scope?.length?`<h3>Governs</h3>` +
+          d.scope.map(g=>`<span class="govern">${esc(g)}</span>`).join(''):''}
+        <h3>Evidence</h3>
+        ${(d.evidence||[]).slice(0,2).map(e =>
+          `<p class="quote">&ldquo;${esc(e.quote.slice(0,320))}${e.quote.length>320?'…':''}&rdquo;</p>
+           <p class="src">${esc(e.author)}${e.anchor?' &middot; '+esc(e.anchor):''}</p>`).join('')}
+        <p class="src" style="margin-top:10px">confidence: ${esc(d.confidence||'unstated')}</p>
+      </div>`).join('') + `</div>
+      <div class="realnote"><b>Every quote above is verbatim from the thread.</b> The
+      model was required to attach one to each decision, which is what makes citation
+      accuracy measurable and is the cheapest defence against a model inventing a reason
+      that merely sounds right.</div>`;
   }
 
   function repoResults(r){
@@ -717,15 +778,24 @@
     if(!t){ runState.error = "I could not read that. Paste a repository, like https://github.com/encode/httpx, or a single pull request.";
             runState.result = null; runState.lines = []; return render(); }
     const tokEl = document.getElementById('tok');
+    const keyEl = document.getElementById('key');
     const token = tokEl ? tokEl.value : "";
-    runState = { busy:true, lines:[{stage:"starting", text: t.number ? `${t.repo} #${t.number}` : t.repo, tone:"run"}],
+    const key   = keyEl ? keyEl.value.trim() : "";
+    runState = { busy:true, key, useModel: !!key, lines:[{stage:"starting", text: t.number ? `${t.repo} #${t.number}` : t.repo, tone:"run"}],
                  result:null, error:null, target };
     render();
     const log = (stage, text, tone) => { runState.lines.push({stage, text, tone}); render(); };
     try{
-      runState.result = t.number
-        ? await window.PriorLive.run(t.repo, t.number, token, log)
-        : { repoScan: await window.PriorLive.runRepo(t.repo, token, log) };
+      if(t.number){
+        const out = await window.PriorLive.run(t.repo, t.number, token, log);
+        if(key){
+          out.decisions = await window.PriorModel.extract(out.doc, key, log);
+          out.fromModel = true;
+        }
+        runState.result = out;
+      } else {
+        runState.result = { repoScan: await window.PriorLive.runRepo(t.repo, token, log) };
+      }
       runState.busy = false; render();
     }catch(err){
       runState.busy = false; runState.error = err.message; render();
@@ -835,6 +905,8 @@
       b.setAttribute('aria-current', String(b.dataset.v === view)));
     const typed = document.getElementById('tgt');
     if(typed && view === 'try' && !runState.busy) runState.target = typed.value;
+    const k = document.getElementById('key');
+    if(k && view === 'try' && !runState.busy && k.value) runState.key = k.value;
     main.innerHTML = ({tour, try:tryView, overview, decisions, coverage, people, alerts})[view]();
     main.scrollTop = 0;
   }

@@ -67,7 +67,24 @@ override was the wrong place. **The shipped product reads each candidate with a 
 fine-tuned model** and returns the choice, the reason and what was ruled out, or returns
 nothing, which is the right answer for most threads.
 
-This demo has no model. Everything before that step is the production logic.
+### Or give it a model, and it does the real thing
+
+Paste an Anthropic API key in **Try it live** and the last step runs for real.
+`claude-opus-5` reads the whole filtered thread and returns decisions matching a strict
+schema: the choice, the rationale or `null` if the thread never gave one, what was ruled
+out, the condition for reopening it, and a verbatim quote for every claim.
+
+It is also told that **returning nothing is the correct answer** when a thread contains
+only corrections and style preferences, because that is most threads. A model that
+always finds something is useless.
+
+The key stays in the browser tab and goes to `api.anthropic.com` and nowhere else.
+There is no server. One run costs a few cents.
+
+In the shipped product this step is a **small fine-tuned model**, because it runs on
+every thread of every repository and the price per call is the whole budget. A frontier
+model is used to generate that one's training data, and here, where there is one thread
+at a time and quality matters more than cost.
 
 There is **no server**. An optional GitHub token raises the rate limit from 60 requests
 an hour to 5,000; it stays in the browser tab and is sent to github.com and nowhere else.

@@ -12,7 +12,20 @@ A clickable demo of **Prior**, a decision API for codebases.
 
 ## What you are looking at
 
-Five views over one repository's recorded decisions.
+It opens on **How it works**: a seven step walk through the whole system, one real
+surface per step.
+
+| | |
+|---|---|
+| 1 | A number in the code that nobody can explain |
+| 2 | `prior scan` reading three years of history, with what each stage costs |
+| 3 | What it found, as a record rather than a paragraph |
+| 4 | A developer asking, answered without a model running |
+| 5 | **Cursor asking on its own, before it writes** |
+| 6 | The bot catching a pull request that contradicts a past decision |
+| 7 | The loop that makes the memory grow without anyone remembering to feed it |
+
+Then five views over the memory itself.
 
 | | |
 |---|---|
@@ -54,7 +67,7 @@ python3 -m http.server 8000
 # then open http://localhost:8000
 ```
 
-`index.html` is the whole application. `data.js` is the only input. Swapping that file
+`index.html` is the whole application. `data.js` holds the decisions and `walkthrough.js` the tour script. Swapping that file
 for real extracted decisions is all it takes to point this at a live repository.
 
 ## Deploying

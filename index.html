@@ -167,6 +167,94 @@
   .person .ar{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
   .note{font-size:12.5px;color:var(--faint);margin-top:12px;line-height:1.55}
 
+
+  /* ---- walkthrough ---------------------------------------------------- */
+  .steps{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
+  .steps button{width:30px;height:30px;border-radius:999px;border:1px solid var(--line);
+    font-size:12.5px;font-weight:600;color:var(--faint);font-variant-numeric:tabular-nums}
+  .steps button[aria-current="true"]{background:var(--ember);border-color:var(--ember);
+    color:#fff}
+  .steps button.done{color:var(--ink);border-color:var(--line-strong)}
+  .say{font-size:16px;line-height:1.5;color:var(--muted);max-width:66ch;margin-bottom:18px}
+  .after{margin-top:18px;padding:14px 18px;background:var(--ember-bg);
+    border-radius:var(--r);font-size:14px;line-height:1.55;max-width:74ch}
+  .navbtns{display:flex;gap:10px;margin-top:24px;align-items:center}
+  .navbtns button{padding:9px 18px;border-radius:999px;border:1px solid var(--line-strong);
+    font-weight:600;font-size:13.5px}
+  .navbtns button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .navbtns button:disabled{opacity:.35;cursor:default}
+  .navbtns .of{font-size:12.5px;color:var(--faint);margin-left:auto;
+    font-variant-numeric:tabular-nums}
+
+  /* ---- terminal ------------------------------------------------------- */
+  .term{background:#121214;border:1px solid #27272A;border-radius:var(--r);
+    padding:18px 20px;font-family:var(--mono);font-size:12.8px;line-height:1.75;
+    overflow-x:auto;color:#D4D4D8}
+  .term .p{color:#71717A}
+  .term .c{color:#FAFAFA;font-weight:500}
+  .term .g{color:#5EEAD4}
+  .term .r{color:#FB7185}
+  .term .e{color:#FB7C3C}
+  .term .d{color:#A1A1AA}
+  .term .badge{display:inline-block;background:#0C2824;color:#5EEAD4;font-size:10px;
+    font-weight:700;letter-spacing:.08em;padding:1px 7px;border-radius:999px}
+
+  /* ---- code block ----------------------------------------------------- */
+  .codeblk{background:var(--sunken);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 20px;font-family:var(--mono);font-size:12.8px;line-height:1.75;
+    overflow-x:auto;white-space:pre}
+  .codeblk em{color:var(--ember);font-style:normal;font-weight:600}
+  .codeblk .cm{color:var(--faint)}
+
+  /* ---- agent exchange ------------------------------------------------- */
+  .xchg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .xchg .pane{background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r);overflow:hidden}
+  .xchg .hd{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);padding:10px 16px;border-bottom:1px solid var(--line);
+    background:var(--sunken)}
+  .xchg pre{font-family:var(--mono);font-size:12.2px;line-height:1.7;padding:14px 16px;
+    overflow-x:auto;color:var(--ink)}
+  .xchg .k{color:var(--ember)}
+  .chat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 18px;margin-bottom:12px}
+  .chat .who{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:5px}
+  .chat .msg{font-size:14.5px}
+
+  /* ---- pr comment ----------------------------------------------------- */
+  .prc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden;max-width:760px}
+  .prc .hd{display:flex;align-items:center;gap:9px;padding:11px 16px;
+    border-bottom:1px solid var(--line);background:var(--sunken);font-size:13px}
+  .prc .av{width:22px;height:22px;border-radius:999px;background:var(--ember-bg);
+    color:var(--ember);display:grid;place-items:center;font-size:11px;font-weight:700}
+  .prc .who{font-weight:600}
+  .prc .when{color:var(--faint);font-size:12px}
+  .prc .bd{padding:16px 18px}
+  .prc .warn{display:flex;gap:9px;align-items:baseline;font-weight:600;font-size:14.5px;
+    color:var(--rejected);margin-bottom:12px}
+  .prc .hit{border-left:2px solid var(--rejected);padding:3px 0 3px 13px;margin-bottom:12px}
+  .prc .hit .ln{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .prc .hit .tx{font-size:13.5px;margin-top:3px}
+  .prc .hit .lk{font-family:var(--mono);font-size:12px;color:var(--ember)}
+  .prc .ask{font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);
+    padding-top:12px}
+
+  /* ---- loop ----------------------------------------------------------- */
+  .loop{display:flex;flex-direction:column;gap:0;max-width:620px}
+  .loop .n{display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:start}
+  .loop .dot{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;
+    font-size:12px;font-weight:700;background:var(--sunken);color:var(--muted);
+    border:1px solid var(--line)}
+  .loop .n.hi .dot{background:var(--ember);color:#fff;border-color:var(--ember)}
+  .loop .tx{padding-bottom:16px}
+  .loop .tx b{display:block;font-size:14.5px;margin-bottom:2px}
+  .loop .tx span{font-size:13.5px;color:var(--muted)}
+  .loop .bar{width:1px;height:100%;background:var(--line);margin:0 auto;grid-column:1}
+
+  @media (max-width:820px){ .xchg{grid-template-columns:1fr} }
+
   @media (max-width:820px){
     .app{grid-template-columns:1fr}
     .side{border-right:none;border-bottom:1px solid var(--line);padding:14px 16px}
@@ -213,6 +301,7 @@
 </div>
 
 <script src="data.js"></script>
+<script src="walkthrough.js"></script>
 <script>
 (function(){
   const D = window.PRIOR;
@@ -229,6 +318,7 @@
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
   const VIEWS = [
+    { id:'tour',      label:'How it works' },
     { id:'overview',  label:'Overview'  },
     { id:'decisions', label:'Decisions', count:D.decisions.length },
     { id:'coverage',  label:'Coverage'  },
@@ -236,7 +326,7 @@
     { id:'alerts',    label:'Alerts',    count:D.alerts.length }
   ];
 
-  let view = 'overview', filter = 'all', open = null;
+  let view = 'tour', filter = 'all', open = null, step = 0;
 
   nav.innerHTML = VIEWS.map(v =>
     `<button data-v="${v.id}">${v.label}${v.count!=null?`<span class="count">${v.count}</span>`:''}</button>`
@@ -309,6 +399,132 @@
           </span>
         </button>` + (isOpen ? detail(d) : '');
     }).join('') + `</div>`;
+  }
+
+
+  // ---- walkthrough surfaces ------------------------------------------
+  const T = window.PRIOR_TOUR;
+  const byId = id => D.decisions.find(d => d.id === id);
+
+  function termBlock(lines){
+    return `<div class="term">` + lines.map(l => {
+      if(l.p != null) return `<div><span class="p">${esc(l.p)}</span><span class="c">${esc(l.c)}</span></div>`;
+      if(l.g != null) return `<div class="g">${esc(l.g)}</div>`;
+      if(l.r != null) return `<div class="r">${esc(l.r)}</div>`;
+      if(l.e != null) return `<div class="e">${esc(l.e)}</div>`;
+      if(l.s != null) return `<div><span class="badge">${esc(l.s)}</span></div>`;
+      return `<div class="${l.d?'d':''}">${esc(l.o)||'&nbsp;'}</div>`;
+    }).join('') + `</div>`;
+  }
+
+  function codeBlock(src){
+    return `<div class="codeblk">` + esc(src)
+      .replace(/(#[^\n]*)/g, '<span class="cm">$1</span>')
+      .replace(/range\(3\)/, 'range(<em>3</em>)') + `</div>`;
+  }
+
+  function agentSurface(){
+    return `
+      <div class="chat">
+        <div class="who">Developer, in Cursor</div>
+        <div class="msg">Add caching to the delivery client, and make it more reliable
+        under load.</div>
+      </div>
+      <div class="xchg">
+        <div class="pane"><div class="hd">Cursor asks Prior, on its own</div>
+<pre>{ <span class="k">"tool"</span>: "get_constraints",
+  <span class="k">"file"</span>: "src/delivery.py",
+  <span class="k">"lines"</span>: [38, 52] }</pre></div>
+        <div class="pane"><div class="hd">Prior answers in 40ms</div>
+<pre>{ <span class="k">"fixed"</span>: [
+    { "rule": "attempts = 3",
+      "source": "PR #847" } ],
+  <span class="k">"rejected"</span>: [
+    { "option": "circuit breaker",
+      "why": "another piece of state",
+      "revisit_if": "&gt; 10k rps" },
+    { "option": "Redis cache",
+      "why": "removed in 2023" } ] }</pre></div>
+      </div>
+      <div class="chat" style="margin-top:12px;border-color:var(--ember)">
+        <div class="who" style="color:var(--ember)">What Cursor then writes back</div>
+        <div class="msg">Added an in-process cache with a five minute TTL. I left the
+        attempt cap at 3: PR&nbsp;#847 tried 5 and measured it worse. I did not add a
+        circuit breaker, which was declined in the same review and is meant to be
+        reconsidered above 10k&nbsp;rps.</div>
+      </div>`;
+  }
+
+  function prSurface(){
+    return `
+      <div class="prc">
+        <div class="hd"><span class="av" aria-hidden="true">P</span>
+          <span class="who">prior</span>
+          <span class="when">commented on #913 &middot; 2 minutes ago</span></div>
+        <div class="bd">
+          <div class="warn"><span aria-hidden="true">&#9888;</span>
+            This pull request contradicts two recorded decisions</div>
+          <div class="hit">
+            <div class="ln">src/delivery.py:38 &nbsp;&nbsp;attempts 3 &rarr; 5</div>
+            <div class="tx">PR&nbsp;#847 tried 5 and reverted it. Five made the pile-up
+              worse and recovery took twice as long.</div>
+            <div class="lk">&rarr; #847 (discussion_r1234)</div>
+          </div>
+          <div class="hit">
+            <div class="ln">src/delivery.py:88 &nbsp;&nbsp;adds a circuit breaker</div>
+            <div class="tx">Declined in #847 as another piece of state. The condition for
+              reconsidering it was 10k&nbsp;rps. Current traffic is 11.2k, so this may
+              now be right.</div>
+            <div class="lk">&rarr; #847</div>
+          </div>
+          <div class="ask">Not necessarily wrong. If either change is deliberate, say why
+            and I will record it as a new decision.</div>
+        </div>
+      </div>`;
+  }
+
+  function loopSurface(){
+    const N = [
+      ["1","A pull request merges","Nothing is asked of anyone."],
+      ["2","A GitHub Action runs","On GitHub's servers, in seconds. Not on your machine."],
+      ["3","It reads that one discussion","Not the whole history again."],
+      ["4","It opens a pull request","&ldquo;I extracted this decision. Correct?&rdquo; The tool never commits on its own."],
+      ["5","A person clicks merge","Two seconds, and that click is the strongest evidence in the graph."],
+      ["6","The rules files update","Everyone's assistant learns it on their next git pull."]
+    ];
+    return `<div class="loop">` + N.map(([n,t,d],i)=>
+      `<div class="n ${i===4?'hi':''}"><span class="dot">${n}</span>
+         <span class="tx"><b>${t}</b><span>${d}</span></span></div>`).join('') + `</div>`;
+  }
+
+  function tour(){
+    const t = T[step];
+    let body = '';
+    if(t.kind === 'problem')  body = codeBlock(t.code);
+    if(t.kind === 'term')     body = termBlock(t.term);
+    if(t.kind === 'decision'){ const d = byId(t.did);
+      body = `<div class="list"><div class="row" style="cursor:default" aria-expanded="true">
+        <span><span class="t">${esc(d.title)}</span>
+        <span class="m">${esc(d.id)} &middot; ${esc(d.area)} &middot; ${esc(d.governs[0])}</span></span>
+        <span class="tags"><span class="pill rejected">${d.rejected.length} ruled out</span>
+        ${statusPill(d)}</span></div>${detail(d)}</div>`; }
+    if(t.kind === 'agent')    body = agentSurface();
+    if(t.kind === 'pr')       body = prSurface();
+    if(t.kind === 'loop')     body = loopSurface();
+
+    return `
+      <h1>${esc(t.title)}</h1>
+      <p class="say">${esc(t.say)}</p>
+      <div class="steps">${T.map((x,i)=>
+        `<button data-s="${i}" aria-current="${i===step}" class="${i<step?'done':''}"
+          aria-label="Step ${x.n}">${x.n}</button>`).join('')}</div>
+      ${body}
+      <div class="after">${t.after}</div>
+      <div class="navbtns">
+        <button data-step="prev" ${step===0?'disabled':''}>&larr; Back</button>
+        <button data-step="next" class="primary" ${step===T.length-1?'disabled':''}>Next &rarr;</button>
+        <span class="of">${step+1} of ${T.length}</span>
+      </div>`;
   }
 
   function overview(){
@@ -412,11 +628,16 @@
   function render(){
     [...nav.querySelectorAll('button')].forEach(b =>
       b.setAttribute('aria-current', String(b.dataset.v === view)));
-    main.innerHTML = ({overview, decisions, coverage, people, alerts})[view]();
+    main.innerHTML = ({tour, overview, decisions, coverage, people, alerts})[view]();
     main.scrollTop = 0;
   }
 
   main.addEventListener('click', e => {
+    const sb = e.target.closest('[data-s]');
+    if(sb){ step = +sb.dataset.s; return render(); }
+    const nb = e.target.closest('[data-step]');
+    if(nb){ step += nb.dataset.step === 'next' ? 1 : -1;
+            step = Math.max(0, Math.min(T.length-1, step)); return render(); }
     const f = e.target.closest('[data-f]');
     if(f){ filter = f.dataset.f; open = null; return render(); }
     const r = e.target.closest('.row');

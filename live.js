@@ -187,13 +187,71 @@ window.PriorLive = (function(){
   }
 
   function parseTarget(s){
-    s = (s||"").trim();
-    const url = s.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/i);
-    if(url) return { repo: url[1], number: +url[2] };
+    s = (s||"").trim().replace(/\/+$/,"");
+    const pr = s.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/i);
+    if(pr) return { repo: pr[1], number: +pr[2] };
     const pair = s.match(/^([\w.-]+\/[\w.-]+)[\s#/]+(\d+)$/);
     if(pair) return { repo: pair[1], number: +pair[2] };
+    // a whole repository: find the discussions worth reading
+    const repoUrl = s.match(/github\.com\/([^/]+\/[^/?#]+)/i);
+    if(repoUrl) return { repo: repoUrl[1].replace(/\.git$/,"") };
+    const bare = s.match(/^([\w.-]+\/[\w.-]+)$/);
+    if(bare) return { repo: bare[1] };
     return null;
   }
 
-  return { run, parseTarget };
+  // ---- a whole repository ---------------------------------------------
+  // One search call finds the pull requests that actually hold a discussion,
+  // then the normal pipeline runs on the best few. This is the entry point a
+  // real user starts from: they have a repository, not a pull request number.
+  const MIN_COMMENTS = 3, MAX_PRS = 3;
+
+  async function scanRepo(repo, token, log){
+    log("searching", `pull requests in ${repo}`);
+    const all = await gh(
+      `/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr`)}&per_page=1`, token);
+    const total = all.total_count || 0;
+    if(!total){
+      log("found", "no pull requests in this repository", "warn");
+      return { repo, total:0, discussed:0, score:0, runs:[], decisions:[] };
+    }
+
+    const hits = await gh(
+      `/search/issues?q=${encodeURIComponent(`repo:${repo} is:pr comments:>${MIN_COMMENTS}`)}` +
+      `&sort=comments&order=desc&per_page=${MAX_PRS}`, token);
+    const discussed = hits.total_count || 0;
+    const ratio = total ? discussed/total : 0;
+    const score = Math.round(Math.min(10, ratio*10) * 10) / 10;
+
+    log("found",
+      `${total} pull requests, ${discussed} with more than ${MIN_COMMENTS} comments ` +
+      `(${Math.round(ratio*100)}%)`, discussed ? "ok" : "warn");
+
+    if(!discussed){
+      return { repo, total, discussed:0, score:0, runs:[], decisions:[] };
+    }
+
+    log("reading", `the ${Math.min(MAX_PRS, hits.items.length)} most discussed`);
+    const runs = [], decisions = [];
+    for(const it of hits.items.slice(0, MAX_PRS)){
+      try{
+        const linked = await link(repo, it.number, token, () => {});
+        const filtered = filter(linked, () => {});
+        const got = extract(filtered, () => {});
+        runs.push({ number: it.number, title: it.title,
+                    comments: linked.comments.length, kept: filtered.comments.length,
+                    found: got.length });
+        decisions.push(...got);
+        log(`  #${it.number}`,
+            `${linked.comments.length} comments, ${filtered.comments.length} kept, ` +
+            `${got.length} decision${got.length===1?"":"s"}`,
+            got.length ? "ok" : "warn");
+      }catch(e){ log(`  #${it.number}`, e.message, "err"); }
+    }
+    return { repo, total, discussed, score, runs, decisions };
+  }
+
+  async function runRepo(repo, token, log){ return scanRepo(repo, token, log); }
+
+  return { run, runRepo, parseTarget };
 })();

@@ -12,19 +12,31 @@ A clickable demo of **Prior**, a decision API for codebases.
 
 ## It actually runs
 
-Open **Try it live**, paste any public pull request, and the page calls the GitHub API
-from your browser and runs the pipeline in front of you.
+Open **Try it live** and paste a whole repository. It finds the discussions worth
+reading and runs the pipeline on them, in your browser, against live GitHub.
 
 ```
-fetching    encode/httpx #3022
-linked      17 files, 112 comments, 327 touched lines
-filtered    kept 50 of 112 (45%) - 37 no rationale signal, 24 too short, 1 acknowledgement
-extracted   13 decisions
+searching   pull requests in encode/httpx
+found       1803 pull requests, 561 with more than 3 comments (31%)
+reading     the 3 most discussed
+  #3022     112 comments, 50 kept, 13 decisions
+  #305      101 comments, 63 kept, 27 decisions
+  #276       71 comments, 42 kept, 13 decisions
 ```
+
+**That 31% is a real measurement**, and it is the first research question in miniature:
+how much of a project's reasoning survives in its own history. One repository is not a
+result, but it is a data point, produced live.
+
+Paste a single pull request instead and it runs just that one.
 
 Those numbers match the Python pipeline in
 [Simple-Test](https://github.com/PsyAlgoAi/Simple-Test) exactly, because the fetching,
 linking and filtering are the same logic ported to JavaScript.
+
+**A repository with nothing to show says so.** Point it at a project whose changes were
+merged without discussion and it reports exactly that, because how often reasoning fails
+to survive is the finding, not a failure of the tool.
 
 **One stage is not the real thing.** In the shipped product, extraction calls a small
 fine-tuned model. Here it runs readable rules instead, so the page needs no key, costs

@@ -169,6 +169,23 @@
 
 
 
+
+  .repohdr{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:18px 22px;margin-bottom:16px}
+  .repohdr .sc{font-family:var(--brand);font-size:46px;line-height:.85}
+  .repohdr .of{font-size:15px;color:var(--faint);padding-bottom:4px}
+  .repohdr .lb{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:6px}
+  .repohdr .nums{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .repohdr .nums b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .empty{background:var(--surface);border:1px solid var(--ember);border-radius:var(--r);
+    padding:20px 24px;max-width:72ch}
+  .empty h3{font-size:16px;font-weight:600;margin-bottom:8px}
+  .empty p{font-size:14px;line-height:1.6;color:var(--muted);margin-bottom:10px}
+  .empty p:last-child{margin-bottom:0}
+  .empty b{color:var(--ink)}
+
   /* ---- try it --------------------------------------------------------- */
   .tryform{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .tryform input{flex:1;min-width:280px;font-family:var(--mono);font-size:13.5px;
@@ -582,12 +599,13 @@
     const res = r.result ? liveResults(r.result) : '';
     return `
       <h1>Try it live</h1>
-      <p class="sub">Point it at any public pull request. It calls the GitHub API from
-      your browser and runs the real pipeline, right here.</p>
+      <p class="sub">Paste a whole repository and it finds the discussions worth reading, or a single
+      pull request to watch one go through. It calls the GitHub API from your browser
+      and runs the real pipeline, right here.</p>
 
       <div class="tryform">
         <input id="tgt" value="${esc(r.target || 'https://github.com/encode/httpx/pull/3022')}"
-          placeholder="https://github.com/owner/repo/pull/123"
+          placeholder="https://github.com/owner/repo  or  .../pull/123"
           aria-label="Pull request URL" ${r.busy?'disabled':''}>
         <button id="go" ${r.busy?'disabled':''}>${r.busy ? 'Running…' : 'Run'}</button>
       </div>
@@ -615,6 +633,7 @@
   }
 
   function liveResults(out){
+    if(out.repoScan) return repoResults(out.repoScan);
     const { doc, decisions } = out;
     if(!decisions.length){
       return `<div class="card"><p style="color:var(--muted)">
@@ -648,18 +667,63 @@
         </div>`).join('') + `</div>`;
   }
 
+
+  function repoResults(r){
+    if(!r.total) return `<div class="empty">
+      <h3>No pull requests in ${esc(r.repo)}</h3>
+      <p>Everything here was committed straight to the branch, so there is no review
+      discussion to read. <b>Prior has nothing to work with in a repository like this</b>,
+      and saying so is the honest answer.</p>
+      <p>Try one with a review culture: <b>encode/httpx</b> or <b>django/django</b>.</p></div>`;
+
+    const head = `<div class="repohdr">
+      <div><div class="lb">Rationale density</div>
+        <div style="display:flex;align-items:flex-end;gap:10px">
+          <span class="sc" style="color:${r.score>=4?'var(--adopted)':'var(--rejected)'}">${r.score}</span>
+          <span class="of">/ 10</span></div></div>
+      <div class="nums">
+        <div><b>${r.total}</b> pull requests</div>
+        <div><b>${r.discussed}</b> with a real discussion
+          (${Math.round(r.discussed/r.total*100)}%)</div>
+        <div><b>${r.decisions.length}</b> decisions recovered from the top ${r.runs.length}</div>
+      </div></div>`;
+
+    if(!r.discussed) return head + `<div class="empty">
+      <h3>${r.total} pull requests, and not one carries a discussion</h3>
+      <p>Changes here were merged without anyone writing down why. The reasoning was
+      either never recorded, or it lives somewhere this tool cannot see.</p>
+      <p><b>This is the common case, and it is the first thing the research measures.</b>
+      How often reasoning survives at all is a number nobody has published, and a
+      repository like this one is a data point rather than a failure.</p>
+      <p>Prior cannot help a project until its reviews carry reasons. Telling a team that
+      plainly is more useful than pretending otherwise.</p></div>`;
+
+    const perPr = `<h2>What each discussion gave up</h2><div class="card">` +
+      r.runs.map(x => `<div class="covrow" style="grid-template-columns:62px 1fr 150px">
+        <span class="a">#${x.number}</span>
+        <span style="font-size:13.5px">${esc(x.title)}</span>
+        <span class="n">${x.comments} comments &rarr; ${x.found} decision${x.found===1?'':'s'}</span>
+      </div>`).join('') + `</div>`;
+
+    return head + perPr + `<h2>Decisions recovered</h2>` +
+      liveResults({ doc:{repo:r.repo, number:'' }, decisions:r.decisions })
+        .replace(/^<h2>[^<]*<\/h2>/, '');
+  }
+
   async function doRun(target){
     const t = window.PriorLive.parseTarget(target);
-    if(!t){ runState.error = "I could not read that. Paste a pull request URL, like https://github.com/encode/httpx/pull/3022";
+    if(!t){ runState.error = "I could not read that. Paste a repository, like https://github.com/encode/httpx, or a single pull request.";
             runState.result = null; runState.lines = []; return render(); }
     const tokEl = document.getElementById('tok');
     const token = tokEl ? tokEl.value : "";
-    runState = { busy:true, lines:[{stage:"starting", text:`${t.repo} #${t.number}`, tone:"run"}],
+    runState = { busy:true, lines:[{stage:"starting", text: t.number ? `${t.repo} #${t.number}` : t.repo, tone:"run"}],
                  result:null, error:null, target };
     render();
     const log = (stage, text, tone) => { runState.lines.push({stage, text, tone}); render(); };
     try{
-      runState.result = await window.PriorLive.run(t.repo, t.number, token, log);
+      runState.result = t.number
+        ? await window.PriorLive.run(t.repo, t.number, token, log)
+        : { repoScan: await window.PriorLive.runRepo(t.repo, token, log) };
       runState.busy = false; render();
     }catch(err){
       runState.busy = false; runState.error = err.message; render();

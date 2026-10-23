@@ -1,0 +1,78 @@
+# prior-demo
+
+A clickable demo of **Prior**, a decision API for codebases.
+
+**Live:** deployed from this repository on Vercel.
+
+> Version control remembers *what* changed. Nobody remembers *why*.
+> Prior recovers the reasoning a team already wrote, and serves it to the people
+> and the AI assistants that keep tripping over its absence.
+
+---
+
+## What you are looking at
+
+Five views over one repository's recorded decisions.
+
+| | |
+|---|---|
+| **Overview** | How much of this project's reasoning was written down, and what needs attention |
+| **Decisions** | Every choice someone explained at the time. Click one to see why, what was ruled out, and the comment it came from |
+| **Coverage** | Which parts of the codebase have recorded reasoning and which do not |
+| **People** | Where knowledge is concentrated, so you can tell when it is about to leave |
+| **Alerts** | Conditions a past decision set, that have now been met |
+
+### Three things worth clicking
+
+- **D-031** (Postgres for the event log) is marked **superseded**, not deleted. The
+  original reasoning still explains code that was written under it.
+- **D-080** is marked **temporary**: the author said at the time that it would not hold.
+  No documentation format records that.
+- **D-120** is marked **AI proposed**. Recording whether a decision came from a person or
+  an assistant is cheap now and impossible to add backwards.
+
+---
+
+## The data is simulated
+
+`data.js` describes a fake notification service, written so that every feature has
+something to show. **Nothing here is presented as a real project.** The world it uses is
+the one in [Simple-Test](https://github.com/PsyAlgoAi/Simple-Test), where the pipeline
+that would produce this data actually runs.
+
+This demo shows **the shape of the product**, not a result. The measurement that would
+justify it is the subject of the research, and has not been done yet.
+
+---
+
+## Running it
+
+No build step, no dependencies.
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+`index.html` is the whole application. `data.js` is the only input. Swapping that file
+for real extracted decisions is all it takes to point this at a live repository.
+
+## Deploying
+
+Static. On Vercel: import the repository, framework preset **Other**, no build command,
+output directory `.` (the root).
+
+## Design
+
+Colours come from the mark: black line art with a single ember accent. That accent is
+reserved for the brand, so product state gets its own palette (adopted, ruled out,
+temporary, superseded). **Colour is never the only signal** - every state carries its
+word, because roughly one person in twelve cannot separate two of those hues.
+
+Type is `Instrument Serif` for the wordmark only, `Inter` for the interface and
+`JetBrains Mono` for paths. A serif in the interface would make a developer tool read
+like a magazine.
+
+---
+
+Part of [PsyAlgoAi](https://github.com/PsyAlgoAi).

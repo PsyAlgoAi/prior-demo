@@ -623,12 +623,18 @@
       ${err}${log}${res}
 
       <div class="realnote">
-        <b>What is real here.</b> Fetching, linking and filtering are the production
-        logic, running against live GitHub. <b>Extraction is not.</b> The shipped product
-        calls a small fine-tuned model at that step; this page runs readable rules
-        instead, so it needs no key and costs nothing. It finds less than a model would,
-        and misses rationale that is phrased unusually. Everything above the extraction
-        line is exactly what the real pipeline does.
+        <b>What is real here.</b> Fetching, linking and filtering are the production logic,
+        running against live GitHub, and they reproduce the Python pipeline's numbers
+        exactly.<br><br>
+        <b>The last step is not, and it cannot be.</b> Telling a decision apart from a
+        nitpick needs judgement, and regular expressions have none. What the rules do is
+        spot the language a decision leaves behind: something weighed against something
+        else, something measured, a condition set for changing the answer. That points at
+        <em>where</em> a decision probably is. <b>Turning it into a record of what was
+        actually decided is the model's job, and this page has no model.</b><br><br>
+        So these are labelled candidates. In the shipped product a small fine-tuned model
+        reads each one and returns the choice, the reason and what was ruled out, or
+        returns nothing at all, which is the correct answer for most threads.
       </div>`;
   }
 
@@ -636,37 +642,33 @@
     if(out.repoScan) return repoResults(out.repoScan);
     const { doc, decisions } = out;
     if(!decisions.length){
-      return `<div class="card"><p style="color:var(--muted)">
-        No decision found in this discussion. <strong>That is a real outcome, not a
-        failure:</strong> most pull requests contain no recorded reasoning at all, and
-        how often that is true is the first thing the research measures.</p></div>`;
+      return `<div class="empty">
+        <h3>Nothing in this discussion decided anything</h3>
+        <p>Every comment here is a correction, a rename or a question about
+        style. <b>That is what most review threads are</b>, and reporting it
+        honestly is the point: how often a discussion contains a real decision
+        is the first thing the research measures.</p></div>`;
     }
-    return `<h2>Extracted from ${esc(doc.repo)} #${doc.number}</h2>` +
-      `<div class="list">` + decisions.map((d,i) => `
+    return `<h2>Candidates in ${esc(doc.repo)}${doc.number?' #'+doc.number:''}</h2>` +
+      `<div class="list">` + decisions.map(d => `
         <div class="row" style="cursor:default" aria-expanded="true">
-          <span><span class="t">${esc(d.title)}</span>
-          <span class="m">${esc(d.governs[0] || 'no anchored line')}</span></span>
-          <span class="tags">
-            ${d.measured?'<span class="pill adopted">measured</span>':''}
-            ${d.rejected.length?`<span class="pill rejected">${d.rejected.length} ruled out</span>`:''}
-            <span class="pill ${d.status}">${d.status === 'adopted' ? 'Merged' : 'Not merged'}</span>
-          </span>
+          <span><span class="t">${esc(d.quote.slice(0,110))}${d.quote.length>110?'…':''}</span>
+          <span class="m">${esc(d.anchor || d.governs[0] || 'not anchored')} &middot; ${esc(d.author)}</span></span>
+          <span class="tags">${d.signals.map(sg =>
+            `<span class="pill ${sg==='measured'?'adopted':sg.startsWith('set')?'temporary':'rejected'}">${esc(sg)}</span>`).join('')}</span>
         </div>
         <div class="detail">
-          ${d.because?`<h3>Why</h3><p class="because">${esc(d.because)}</p>`:''}
-          ${d.rejected.length?`<h3>Ruled out</h3>` + d.rejected.map(a =>
-            `<div class="alt"><span class="x">&times;</span><span>
-              <strong>${esc(a.option)}</strong>
-              <span class="w"> &nbsp;${esc(a.why)}</span></span></div>`).join(''):''}
-          ${d.revisit?`<h3>Reopen when</h3><div class="revisit">${esc(d.revisit)}</div>`:''}
-          ${d.governs.length?`<h3>Governs</h3>` +
-            d.governs.map(g=>`<span class="govern">${esc(g)}</span>`).join(''):''}
-          ${d.evidence.length?`<h3>Evidence</h3>` + d.evidence.slice(0,2).map(e =>
-            `<p class="quote">&ldquo;${esc(e.quote.slice(0,260))}${e.quote.length>260?'…':''}&rdquo;</p>
-             <p class="src">${esc(e.author)}${e.anchor?' &middot; '+esc(e.anchor):''}</p>`).join(''):''}
+          <h3>What was said</h3>
+          <p class="quote">&ldquo;${esc(d.quote.slice(0,420))}${d.quote.length>420?'…':''}&rdquo;</p>
+          <p class="src">${esc(d.author)}${d.anchor?' &middot; '+esc(d.anchor):''} &middot; pull request #${d.pr}</p>
+          ${d.revisit?`<h3>Condition it set</h3><div class="revisit">${esc(d.revisit)}</div>`:''}
+          <h3>Why this was flagged</h3>
+          <p class="because" style="color:var(--muted);font-size:13.5px">
+            ${d.signals.map(esc).join(' &middot; ')}. <b>A model would turn this into a
+            decision record</b> with the choice, the rationale and what was ruled out.
+            The rules here can only point at where one probably is.</p>
         </div>`).join('') + `</div>`;
   }
-
 
   function repoResults(r){
     if(!r.total) return `<div class="empty">
@@ -685,7 +687,7 @@
         <div><b>${r.total}</b> pull requests</div>
         <div><b>${r.discussed}</b> with a real discussion
           (${Math.round(r.discussed/r.total*100)}%)</div>
-        <div><b>${r.decisions.length}</b> decisions recovered from the top ${r.runs.length}</div>
+        <div><b>${r.decisions.length}</b> candidates found in the top ${r.runs.length}</div>
       </div></div>`;
 
     if(!r.discussed) return head + `<div class="empty">
@@ -702,10 +704,10 @@
       r.runs.map(x => `<div class="covrow" style="grid-template-columns:62px 1fr 150px">
         <span class="a">#${x.number}</span>
         <span style="font-size:13.5px">${esc(x.title)}</span>
-        <span class="n">${x.comments} comments &rarr; ${x.found} decision${x.found===1?'':'s'}</span>
+        <span class="n">${x.comments} comments &rarr; ${x.found} candidate${x.found===1?'':'s'}</span>
       </div>`).join('') + `</div>`;
 
-    return head + perPr + `<h2>Decisions recovered</h2>` +
+    return head + perPr + `<h2>Candidates</h2>` +
       liveResults({ doc:{repo:r.repo, number:'' }, decisions:r.decisions })
         .replace(/^<h2>[^<]*<\/h2>/, '');
   }

@@ -38,10 +38,36 @@ linking and filtering are the same logic ported to JavaScript.
 merged without discussion and it reports exactly that, because how often reasoning fails
 to survive is the finding, not a failure of the tool.
 
-**One stage is not the real thing.** In the shipped product, extraction calls a small
-fine-tuned model. Here it runs readable rules instead, so the page needs no key, costs
-nothing and gives the same answer every time. It finds less than a model would. The
-interface says so, under the results, rather than hiding it.
+## The last step cannot be done with rules, and the page says so
+
+An earlier version of this demo treated any anchored comment over twelve words as a
+decision. On `huggingface/transformers#43451` that produced **37 "decisions"** which
+were really code review nitpicks: *licence header missing*, *rename this class*, *no
+need to guard anymore*. It was noise wearing the shape of a result.
+
+Telling a decision apart from a nitpick takes judgement, and regular expressions have
+none. What the rules can do is spot the language a decision leaves behind:
+
+- something **weighed against something else** (*"we tried five and it was worse"*)
+- something **measured** (*"p95 went to 180ms"*)
+- a **condition set** for changing the answer (*"revisit above 10k rps"*)
+
+That points at *where* a decision probably is. It cannot say what was decided. So the
+output is labelled **candidates**, not decisions, and the same two pull requests now
+report honestly:
+
+```
+transformers #43451   149 comments -> 42 kept -> 2 candidates
+httpx #3022           112 comments -> 50 kept -> 7 candidates
+```
+
+The first two candidates on httpx are the two real decisions in that thread: that
+removing `verify` and `cert` outright was too aggressive, and that the `__new__`
+override was the wrong place. **The shipped product reads each candidate with a small
+fine-tuned model** and returns the choice, the reason and what was ruled out, or returns
+nothing, which is the right answer for most threads.
+
+This demo has no model. Everything before that step is the production logic.
 
 There is **no server**. An optional GitHub token raises the rate limit from 60 requests
 an hour to 5,000; it stays in the browser tab and is sent to github.com and nowhere else.

@@ -104,77 +104,63 @@ window.PriorLive = (function(){
     return { ...doc, comments: kept, dropped };
   }
 
-  // ---- stage 3: extraction (rules here, a model in production) --------
-  const REJECTED  = /(not yet|not worth|we tried this before|pulled it out|closing this|too many|is too \w+|won'?t work|against)/i;
-  const REVISIT   = /(?:worth revisiting if|revisit if|revisiting if|reconsider if|revisit when)\s+(.+?)(?:[.\n]|$)/i;
-  const PROPOSAL  = /(should we|why not|what about|could we|can we)\s+(.+?)\?/i;
-  const NAMED     = /\b([A-Z][A-Za-z0-9_.-]+|\d+)\s+(?:is|are|was|were)\s+too\s+\w+/;
-  const MEASURED  = /(we measured|p9[59]|\d+\s*(ms|rps|qps|percent|%|million|k\b))/i;
+  // ---- stage 3: candidates (rules here, a model in production) --------
+  //
+  // This step cannot be done with regular expressions and the page does not
+  // pretend otherwise. A review comment is overwhelmingly a nitpick: rename
+  // this, move that, the licence header is missing. A decision leaves a trace
+  // in the language instead: something was weighed against something else,
+  // something was measured, or a condition for changing the answer was stated.
+  //
+  // Matching those traces finds roughly where a decision is. It cannot tell
+  // you what the decision was, which is the model's job. So what comes out of
+  // here is labelled candidates, not decisions.
+  const RULED_OUT = /\b(we tried|tried (it|that|this|them)|was (tried|rejected|reverted|removed)|pulled (it|them) out|not worth|won'?t work|does ?n'?t work|didn'?t work|instead of|rather than|we (chose|decided|went with|moved away|settled on)|decided (to|against|not)|not yet|closing this|too (aggressive|risky|complex|slow|many|much)|against (doing|using))/i;
+  const MEASURED  = /\b(we measured|measured it|benchmark|profil(ed|ing)|p9[59]|\d+\s*(ms|rps|qps|%|percent|x (faster|slower))|twice as (slow|long|fast))\b/i;
+  const REVISIT   = /\b(revisit|reconsider|re-?evaluate)\b[^.]{0,60}\b(if|when|once|above|past|beyond)\b/i;
+  const NIT       = /^(nit|typo|style|lint)\b|\b(licence|license) header|missing (a )?(comma|newline|docstring|header)|same (format|as) (in|above)/i;
+  const REVISIT_C = /(?:revisit|reconsider|re-?evaluate)[^.]{0,20}?\b(?:if|when|once|above|past|beyond)\s+(.+?)(?:[.\n]|$)/i;
+
+  function signalsOf(t){
+    const out = [];
+    if(RULED_OUT.test(t)) out.push("weighed against something");
+    if(MEASURED.test(t))  out.push("measured");
+    if(REVISIT.test(t))   out.push("set a condition to revisit");
+    return out;
+  }
 
   function extract(doc, log){
     const out = [];
-    const cs = doc.comments;
+    let examined = 0;
 
-    // one decision for the pull request itself
-    const dec = {
-      id: `${doc.repo}#${doc.number}`, pr: doc.number,
-      title: doc.title, status: doc.merged ? "adopted" : "rejected",
-      because: null, rejected: [], revisit: null,
-      governs: Object.entries(doc.scope).filter(([,l]) => l.length)
-                 .slice(0,3).map(([p,l]) => `${p}:${l[0]}`),
-      supersedes: doc.supersedes, evidence: [], measured: false
-    };
+    for(const c of doc.comments){
+      const t = (c.body||"").replace(/\s+/g," ").trim();
+      examined++;
+      if(t.split(/\s+/).length < 10) continue;
+      if(NIT.test(t)) continue;
+      const sig = signalsOf(t);
+      if(!sig.length) continue;
 
-    cs.forEach((c, i) => {
-      const t = c.body.replace(/\s+/g," ").trim();
-      if(REJECTED.test(t) || MEASURED.test(t)){
-        if(!dec.because || t.length > dec.because.length) dec.because = t;
-        dec.evidence.push({ author:c.author, quote:t,
-          anchor: c.line ? `${c.path}:${c.line}` : null });
-      }
-      if(MEASURED.test(t)) dec.measured = true;
-      if(REJECTED.test(t)){
-        let option = null;
-        if(i > 0){ const m = PROPOSAL.exec(cs[i-1].body); if(m) option = m[2].trim(); }
-        if(!option){ const m = PROPOSAL.exec(t); if(m) option = m[2].trim(); }
-        if(!option){ const m = NAMED.exec(t);    if(m) option = m[1].trim(); }
-        if(option) dec.rejected.push({ option: option.slice(0,80),
-                                       why: t.slice(0,180), by: c.author });
-      }
-      const r = REVISIT.exec(t);
-      if(r) dec.revisit = r[1].trim().slice(0,120);
-    });
-
-    if(dec.because || dec.rejected.length) out.push(dec);
-
-    // a pull request holds more than one decision: every anchored comment
-    // with a real explanation becomes its own, keyed to the line it sits on
-    const byLine = {};
-    for(const c of cs){
-      if(c.line && c.body.split(/\s+/).length >= 12){
-        const k = `${c.path}:${c.line}`;
-        (byLine[k] = byLine[k] || []).push(c);
-      }
-    }
-    for(const [k, group] of Object.entries(byLine)){
-      const longest = group.reduce((a,b) => b.body.length > a.body.length ? b : a);
-      const t = longest.body.replace(/\s+/g," ").trim();
-      if(dec.because === t) continue;
+      const rev = REVISIT_C.exec(t);
       out.push({
-        id: `${doc.repo}#${doc.number} @ ${k}`, pr: doc.number,
-        title: `Line level decision in ${k}`,
+        id: `${doc.repo}#${doc.number}`,
+        pr: doc.number,
+        title: doc.title,
         status: doc.merged ? "adopted" : "rejected",
-        because: t, rejected: [], revisit: null, governs: [k], supersedes: [],
-        evidence: [{ author: longest.author, quote: t, anchor: k }],
-        measured: MEASURED.test(t)
+        quote: t,
+        signals: sig,
+        revisit: rev ? rev[1].trim().slice(0,120) : null,
+        author: c.author,
+        anchor: c.line ? `${c.path}:${c.line}` : null,
+        governs: c.line ? [`${c.path}:${c.line}`]
+                        : Object.entries(doc.scope).filter(([,l]) => l.length)
+                            .slice(0,2).map(([pth,l]) => `${pth}:${l[0]}`)
       });
     }
 
-    log("extracted",
-      `${out.length} decision${out.length===1?"":"s"}` +
-      (out.reduce((n,d)=>n+d.rejected.length,0)
-        ? `, ${out.reduce((n,d)=>n+d.rejected.length,0)} ruled out` : "") +
-      (out.some(d=>d.revisit) ? ", 1 with a reopen condition" : ""),
+    log("candidates",
+      `${out.length} of ${examined} comments carry a decision signal` +
+      (out.length ? "" : " — nothing in this discussion decided anything"),
       out.length ? "ok" : "warn");
     return out;
   }

@@ -168,6 +168,40 @@
   .note{font-size:12.5px;color:var(--faint);margin-top:12px;line-height:1.55}
 
 
+
+  /* ---- try it --------------------------------------------------------- */
+  .tryform{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .tryform input{flex:1;min-width:280px;font-family:var(--mono);font-size:13.5px;
+    padding:11px 14px;border:1px solid var(--line-strong);border-radius:9px;
+    background:var(--surface);color:var(--ink)}
+  .tryform input::placeholder{color:var(--faint)}
+  .tryform button{padding:11px 22px;border-radius:9px;background:var(--ink);
+    color:var(--paper);font-weight:600;font-size:13.5px}
+  .tryform button:disabled{opacity:.45;cursor:default}
+  .egs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .egs .lb{font-size:12.5px;color:var(--faint)}
+  .egs button{font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted)}
+  .egs button:hover{border-color:var(--line-strong);color:var(--ink)}
+  details.tok{margin-bottom:16px}
+  details.tok summary{font-size:12.5px;color:var(--faint);cursor:pointer}
+  details.tok input{width:100%;max-width:440px;margin-top:8px;font-family:var(--mono);
+    font-size:12.5px;padding:8px 11px;border:1px solid var(--line);border-radius:7px;
+    background:var(--surface);color:var(--ink)}
+  details.tok p{font-size:12px;color:var(--faint);margin-top:6px;max-width:560px;
+    line-height:1.5}
+  .runlog{background:#121214;border:1px solid #27272A;border-radius:var(--r);
+    padding:15px 18px;font-family:var(--mono);font-size:12.6px;line-height:1.8;
+    color:#D4D4D8;margin-bottom:16px;overflow-x:auto}
+  .runlog .st{color:#71717A;display:inline-block;min-width:92px}
+  .runlog .ok{color:#5EEAD4} .runlog .warn{color:#FCD34D} .runlog .err{color:#FB7185}
+  .runlog .run{color:#FB7C3C}
+  .banner{background:var(--rejected-bg);color:var(--rejected);border-radius:var(--r);
+    padding:13px 16px;font-size:13.5px;line-height:1.5;margin-bottom:16px}
+  .realnote{background:var(--sunken);border:1px solid var(--line);border-radius:var(--r);
+    padding:13px 16px;font-size:12.8px;color:var(--muted);line-height:1.55;margin-top:18px}
+  .realnote b{color:var(--ink)}
+
   /* ---- walkthrough ---------------------------------------------------- */
   .steps{display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap}
   .steps button{width:30px;height:30px;border-radius:999px;border:1px solid var(--line);
@@ -302,6 +336,7 @@
 
 <script src="data.js"></script>
 <script src="walkthrough.js"></script>
+<script src="live.js"></script>
 <script>
 (function(){
   const D = window.PRIOR;
@@ -319,6 +354,7 @@
 
   const VIEWS = [
     { id:'tour',      label:'How it works' },
+    { id:'try',       label:'Try it live' },
     { id:'overview',  label:'Overview'  },
     { id:'decisions', label:'Decisions', count:D.decisions.length },
     { id:'coverage',  label:'Coverage'  },
@@ -527,6 +563,109 @@
       </div>`;
   }
 
+
+  // ---- try it live -----------------------------------------------------
+  const EGS = [
+    ["encode/httpx", 3022, "SSL config, 112 comments"],
+    ["django/django", 18056, "composite primary keys"],
+    ["pydantic/pydantic", 6563, "attribute docstrings"],
+    ["encode/httpx", 276, "trio backend"]
+  ];
+  let runState = { busy:false, lines:[], result:null, error:null, target:"" };
+
+  function tryView(){
+    const r = runState;
+    const log = r.lines.length ? `<div class="runlog">` + r.lines.map(l =>
+        `<div><span class="st">${esc(l.stage)}</span><span class="${l.tone||''}">${esc(l.text)}</span></div>`
+      ).join('') + `</div>` : '';
+    const err = r.error ? `<div class="banner">${esc(r.error)}</div>` : '';
+    const res = r.result ? liveResults(r.result) : '';
+    return `
+      <h1>Try it live</h1>
+      <p class="sub">Point it at any public pull request. It calls the GitHub API from
+      your browser and runs the real pipeline, right here.</p>
+
+      <div class="tryform">
+        <input id="tgt" value="${esc(r.target || 'https://github.com/encode/httpx/pull/3022')}"
+          placeholder="https://github.com/owner/repo/pull/123"
+          aria-label="Pull request URL" ${r.busy?'disabled':''}>
+        <button id="go" ${r.busy?'disabled':''}>${r.busy ? 'Running…' : 'Run'}</button>
+      </div>
+      <div class="egs"><span class="lb">or try</span>${EGS.map(([rp,n,d])=>
+        `<button data-eg="${rp}|${n}" title="${esc(d)}">${esc(rp)}#${n}</button>`).join('')}</div>
+
+      <details class="tok"><summary>Hitting the rate limit? Add a GitHub token</summary>
+        <input id="tok" type="password" placeholder="ghp_… (optional)"
+          aria-label="GitHub token" autocomplete="off">
+        <p>Unauthenticated GitHub allows 60 requests an hour and one run uses four. A
+        read-only token raises that to 5,000. It stays in this browser tab and is sent
+        to github.com and nowhere else. <b>This page has no server.</b></p>
+      </details>
+
+      ${err}${log}${res}
+
+      <div class="realnote">
+        <b>What is real here.</b> Fetching, linking and filtering are the production
+        logic, running against live GitHub. <b>Extraction is not.</b> The shipped product
+        calls a small fine-tuned model at that step; this page runs readable rules
+        instead, so it needs no key and costs nothing. It finds less than a model would,
+        and misses rationale that is phrased unusually. Everything above the extraction
+        line is exactly what the real pipeline does.
+      </div>`;
+  }
+
+  function liveResults(out){
+    const { doc, decisions } = out;
+    if(!decisions.length){
+      return `<div class="card"><p style="color:var(--muted)">
+        No decision found in this discussion. <strong>That is a real outcome, not a
+        failure:</strong> most pull requests contain no recorded reasoning at all, and
+        how often that is true is the first thing the research measures.</p></div>`;
+    }
+    return `<h2>Extracted from ${esc(doc.repo)} #${doc.number}</h2>` +
+      `<div class="list">` + decisions.map((d,i) => `
+        <div class="row" style="cursor:default" aria-expanded="true">
+          <span><span class="t">${esc(d.title)}</span>
+          <span class="m">${esc(d.governs[0] || 'no anchored line')}</span></span>
+          <span class="tags">
+            ${d.measured?'<span class="pill adopted">measured</span>':''}
+            ${d.rejected.length?`<span class="pill rejected">${d.rejected.length} ruled out</span>`:''}
+            <span class="pill ${d.status}">${d.status === 'adopted' ? 'Merged' : 'Not merged'}</span>
+          </span>
+        </div>
+        <div class="detail">
+          ${d.because?`<h3>Why</h3><p class="because">${esc(d.because)}</p>`:''}
+          ${d.rejected.length?`<h3>Ruled out</h3>` + d.rejected.map(a =>
+            `<div class="alt"><span class="x">&times;</span><span>
+              <strong>${esc(a.option)}</strong>
+              <span class="w"> &nbsp;${esc(a.why)}</span></span></div>`).join(''):''}
+          ${d.revisit?`<h3>Reopen when</h3><div class="revisit">${esc(d.revisit)}</div>`:''}
+          ${d.governs.length?`<h3>Governs</h3>` +
+            d.governs.map(g=>`<span class="govern">${esc(g)}</span>`).join(''):''}
+          ${d.evidence.length?`<h3>Evidence</h3>` + d.evidence.slice(0,2).map(e =>
+            `<p class="quote">&ldquo;${esc(e.quote.slice(0,260))}${e.quote.length>260?'…':''}&rdquo;</p>
+             <p class="src">${esc(e.author)}${e.anchor?' &middot; '+esc(e.anchor):''}</p>`).join(''):''}
+        </div>`).join('') + `</div>`;
+  }
+
+  async function doRun(target){
+    const t = window.PriorLive.parseTarget(target);
+    if(!t){ runState.error = "I could not read that. Paste a pull request URL, like https://github.com/encode/httpx/pull/3022";
+            runState.result = null; runState.lines = []; return render(); }
+    const tokEl = document.getElementById('tok');
+    const token = tokEl ? tokEl.value : "";
+    runState = { busy:true, lines:[{stage:"starting", text:`${t.repo} #${t.number}`, tone:"run"}],
+                 result:null, error:null, target };
+    render();
+    const log = (stage, text, tone) => { runState.lines.push({stage, text, tone}); render(); };
+    try{
+      runState.result = await window.PriorLive.run(t.repo, t.number, token, log);
+      runState.busy = false; render();
+    }catch(err){
+      runState.busy = false; runState.error = err.message; render();
+    }
+  }
+
   function overview(){
     const pct = Math.round(D.stats.withReason / D.stats.decisions * 100);
     return `
@@ -628,16 +767,26 @@
   function render(){
     [...nav.querySelectorAll('button')].forEach(b =>
       b.setAttribute('aria-current', String(b.dataset.v === view)));
-    main.innerHTML = ({tour, overview, decisions, coverage, people, alerts})[view]();
+    const typed = document.getElementById('tgt');
+    if(typed && view === 'try' && !runState.busy) runState.target = typed.value;
+    main.innerHTML = ({tour, try:tryView, overview, decisions, coverage, people, alerts})[view]();
     main.scrollTop = 0;
   }
 
+  main.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target.id === 'tgt'){ e.preventDefault(); doRun(e.target.value); }
+  });
   main.addEventListener('click', e => {
     const sb = e.target.closest('[data-s]');
     if(sb){ step = +sb.dataset.s; return render(); }
     const nb = e.target.closest('[data-step]');
     if(nb){ step += nb.dataset.step === 'next' ? 1 : -1;
             step = Math.max(0, Math.min(T.length-1, step)); return render(); }
+    const eg = e.target.closest('[data-eg]');
+    if(eg){ const [rp,n] = eg.dataset.eg.split('|');
+            return doRun(`https://github.com/${rp}/pull/${n}`); }
+    if(e.target.id === 'go'){
+      return doRun(document.getElementById('tgt').value); }
     const f = e.target.closest('[data-f]');
     if(f){ filter = f.dataset.f; open = null; return render(); }
     const r = e.target.closest('.row');

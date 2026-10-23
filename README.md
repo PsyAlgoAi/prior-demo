@@ -10,6 +10,30 @@ A clickable demo of **Prior**, a decision API for codebases.
 
 ---
 
+## It actually runs
+
+Open **Try it live**, paste any public pull request, and the page calls the GitHub API
+from your browser and runs the pipeline in front of you.
+
+```
+fetching    encode/httpx #3022
+linked      17 files, 112 comments, 327 touched lines
+filtered    kept 50 of 112 (45%) - 37 no rationale signal, 24 too short, 1 acknowledgement
+extracted   13 decisions
+```
+
+Those numbers match the Python pipeline in
+[Simple-Test](https://github.com/PsyAlgoAi/Simple-Test) exactly, because the fetching,
+linking and filtering are the same logic ported to JavaScript.
+
+**One stage is not the real thing.** In the shipped product, extraction calls a small
+fine-tuned model. Here it runs readable rules instead, so the page needs no key, costs
+nothing and gives the same answer every time. It finds less than a model would. The
+interface says so, under the results, rather than hiding it.
+
+There is **no server**. An optional GitHub token raises the rate limit from 60 requests
+an hour to 5,000; it stays in the browser tab and is sent to github.com and nowhere else.
+
 ## What you are looking at
 
 It opens on **How it works**: a seven step walk through the whole system, one real

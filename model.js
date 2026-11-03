@@ -16,16 +16,42 @@ window.PriorModel = (function(){
   const SYSTEM = `You extract engineering decisions from pull request discussions.
 
 A decision is a choice about how the software works or is built, where the
-discussion shows what was chosen or ruled out.
+discussion shows what was chosen AND what was ruled out.
 
-Most review comments are NOT decisions. Renaming a class, a missing licence
-header, a typo, a style preference, "can you move this" — none of these are
+THE GATE. If the thread never weighs one option against another, it is not a
+decision, it is just how things are. Renaming a class, a missing licence
+header, a typo, a style preference, "can you move this" - none of these are
 decisions, and returning them is worse than returning nothing.
+
+CONTEXT IS NOT RATIONALE. They are different fields and they are easy to
+confuse.
+  rationale  why the choice was made, with the evidence or measurement
+             "we tried 5 and got banned; 3 catches 94% of failures"
+  context    what was true about the world at the time, the condition the
+             decision depended on
+             "the provider did not return Retry-After"
+Context is historical. Never write a present-tense judgement into it. If the
+thread states no such condition, use null rather than restating the rationale.
+
+REVISIT_IF IS CONTEXT INVERTED. What was true then, and what would have to
+stop being true. Only write it if the thread actually set that condition.
+
+SCOPE. Every target must be prefixed with the system it belongs to:
+  repo:<owner/name>/<path>   for a file
+  db:<database>.<table>.<column>
+  contract:<id>.<clause>
+Use only the paths given to you. Never invent one, and never guess a line
+number that was not in the input.
 
 Rules:
 - Every decision needs at least one verbatim quote from the thread as evidence.
 - Never state a rationale the thread does not contain. Use null.
-- Do not infer scope. Use only the paths and lines given to you.
+- Never write a placeholder like "the alternative discussed here". An empty
+  field is worse than a missing one, because it reads as information. Drop
+  the alternative instead.
+- Check mid-thread claims against the final state. A comment calling something
+  temporary on day one is not binding if a later commit in the same thread
+  resolved it.
 - If the thread contains no decision, return {"decisions": []}. This is the
   correct answer for the majority of pull requests.`;
 
@@ -37,11 +63,14 @@ Rules:
         type: "array",
         items: {
           type: "object", additionalProperties: false,
-          required: ["statement", "status", "rationale", "alternatives",
-                     "revisit_if", "scope", "evidence", "confidence"],
+          required: ["statement", "context", "status", "rationale",
+                     "alternatives", "revisit_if", "scope", "evidence",
+                     "confidence"],
           properties: {
             statement: { type: "string" },
-            status: { type: "string", enum: ["adopted","rejected","deferred","temporary"] },
+            context:   { type: ["string","null"] },
+            status: { type: "string",
+                      enum: ["adopted","rejected","deferred","temporary","superseded"] },
             rationale: { type: ["string","null"] },
             alternatives: {
               type: "array",
@@ -50,13 +79,26 @@ Rules:
                 required: ["option","outcome","reason"],
                 properties: {
                   option:  { type: "string" },
-                  outcome: { type: "string", enum: ["chosen","rejected","deferred"] },
+                  outcome: { type: "string",
+                             enum: ["rejected","deferred","untested"] },
                   reason:  { type: ["string","null"] }
                 }
               }
             },
             revisit_if: { type: ["string","null"] },
-            scope: { type: "array", items: { type: "string" } },
+            scope: {
+              type: "array",
+              items: {
+                type: "object", additionalProperties: false,
+                required: ["target","kind"],
+                properties: {
+                  target: { type: "string" },
+                  kind: { type: "string",
+                          enum: ["code","column","table","rule","row",
+                                 "clause","section","spec"] }
+                }
+              }
+            },
             evidence: {
               type: "array", minItems: 1,
               items: {
@@ -96,6 +138,9 @@ ${(doc.body || "").replace(/\s+/g," ").trim().slice(0, 1500) || "(none)"}
 
 FILES AND LINES THIS PULL REQUEST TOUCHES:
 ${scope}
+
+When writing scope targets for these files, prefix each one:
+  repo:${doc.repo}/<path>     kind "code"
 
 DISCUSSION (chronological):
 ${comments}
@@ -152,8 +197,16 @@ Return the decisions as JSON.`;
       `· ${u.input_tokens||"?"} in, ${u.output_tokens||"?"} out`,
       parsed.decisions.length ? "ok" : "warn");
 
-    return parsed.decisions.map((d,i) => ({ ...d, id: `${doc.repo}#${doc.number}-${i+1}`,
-                                            pr: doc.number, fromModel: true }));
+    // origin is stamped here, never asked of the model. "extracted" means
+    // nobody has confirmed this yet, and the interface has to say so.
+    return parsed.decisions.map((d,i) => ({
+      ...d,
+      id: `${doc.repo}#${doc.number}-${i+1}`,
+      pr: doc.number,
+      source: `${doc.repo}#${doc.number}`,
+      origin: "extracted",
+      fromModel: true
+    }));
   }
 
   return { extract, MODEL };

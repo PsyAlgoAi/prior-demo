@@ -134,6 +134,7 @@
   .govern{font-family:var(--mono);font-size:12.5px;background:var(--sunken);
           border:1px solid var(--line);border-radius:6px;padding:5px 9px;display:inline-block;
           margin:0 5px 5px 0}
+  .govern .w{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
   .revisit{background:var(--temporary-bg);color:var(--temporary);border-radius:7px;
            padding:9px 12px;font-size:13px;font-weight:500}
   .supers{background:var(--stale-bg);border-radius:7px;padding:9px 12px;font-size:13px;
@@ -702,7 +703,7 @@
     return head + `<div class="list">` + ds.map(d => `
       <div class="row" style="cursor:default" aria-expanded="true">
         <span><span class="t">${esc(d.statement)}</span>
-        <span class="m">${esc((d.scope||[])[0] || 'not anchored')}</span></span>
+        <span class="m">${esc((d.scope||[])[0]?.target || 'not anchored')}</span></span>
         <span class="tags">
           ${d.alternatives?.length?`<span class="pill rejected">${d.alternatives.length} ruled out</span>`:''}
           <span class="pill ${badge[d.status]||'superseded'}">${esc(d.status)}</span>
@@ -712,23 +713,33 @@
         ${d.rationale?`<h3>Why</h3><p class="because">${esc(d.rationale)}</p>`
                      :`<h3>Why</h3><p class="because" style="color:var(--faint)">
                        The thread never said. <b>Recorded as unknown rather than invented.</b></p>`}
+        ${d.context?`<h3>True at the time</h3><p class="because">${esc(d.context)}</p>`:''}
         ${d.alternatives?.length?`<h3>Ruled out</h3>` + d.alternatives.map(a =>
-          `<div class="alt"><span class="x">${a.outcome==='chosen'?'&check;':'&times;'}</span>
+          `<div class="alt"><span class="x">&times;</span>
             <span><strong>${esc(a.option)}</strong>${a.reason?
             `<span class="w"> &nbsp;${esc(a.reason)}</span>`:''}</span></div>`).join(''):''}
         ${d.revisit_if?`<h3>Reopen when</h3><div class="revisit">${esc(d.revisit_if)}</div>`:''}
         ${d.scope?.length?`<h3>Governs</h3>` +
-          d.scope.map(g=>`<span class="govern">${esc(g)}</span>`).join(''):''}
+          d.scope.map(g=>`<span class="govern">${esc(g.target)}<span class="w"> &nbsp;${esc(g.kind)}</span></span>`).join(''):''}
         <h3>Evidence</h3>
         ${(d.evidence||[]).slice(0,2).map(e =>
           `<p class="quote">&ldquo;${esc(e.quote.slice(0,320))}${e.quote.length>320?'…':''}&rdquo;</p>
            <p class="src">${esc(e.author)}${e.anchor?' &middot; '+esc(e.anchor):''}</p>`).join('')}
-        <p class="src" style="margin-top:10px">confidence: ${esc(d.confidence||'unstated')}</p>
+        <p class="src" style="margin-top:10px">origin: ${esc(d.origin||'extracted')}
+          &middot; nobody has confirmed this
+          &middot; confidence: ${esc(d.confidence||'unstated')}</p>
       </div>`).join('') + `</div>
       <div class="realnote"><b>Every quote above is verbatim from the thread.</b> The
       model was required to attach one to each decision, which is what makes citation
       accuracy measurable and is the cheapest defence against a model inventing a reason
-      that merely sounds right.</div>`;
+      that merely sounds right.
+      <br><br><b>Two fields the model is never asked for.</b> <code>source</code> is
+      known before extraction begins, because we asked for that thread by number;
+      letting a model write it would invite it to invent one, and the source is the
+      only thing that makes an answer believable. <code>origin</code> is stamped
+      <code>extracted</code>, meaning no human has confirmed it. Showing a model's
+      guess and a person's statement as the same thing destroys trust the first time
+      an extraction is wrong.</div>`;
   }
 
   function repoResults(r){

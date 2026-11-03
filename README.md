@@ -71,8 +71,24 @@ nothing, which is the right answer for most threads.
 
 Paste an Anthropic API key in **Try it live** and the last step runs for real.
 `claude-opus-5` reads the whole filtered thread and returns decisions matching a strict
-schema: the choice, the rationale or `null` if the thread never gave one, what was ruled
-out, the condition for reopening it, and a verbatim quote for every claim.
+schema: the choice, **what was true at the time**, its status, the rationale or `null`
+if the thread never gave one, what was ruled out, the condition for reopening it, and a
+verbatim quote for every claim.
+
+`context` and `rationale` are separate fields on purpose. The rationale is why the choice
+was made; the context is the condition it depended on. When the context stops holding,
+the decision is due for review, and `revisit_if` is that condition inverted. Keeping them
+apart is what turns "reopen when" from a human note into something checkable.
+
+Scope targets carry the system they belong to: `repo:owner/name/path`,
+`db:database.table.column`, `contract:id.clause`. One free-text pointer plus a `kind` is
+the only reason one schema covers code, databases and contracts at once, and the prefix
+is what stops two databases with the same table name answering each other's questions.
+
+Two fields are **never asked of the model**. `source` is known before extraction begins,
+because the thread was requested by number; letting a model write it invites it to invent
+one, and the source is the only thing that makes an answer believable. `origin` is stamped
+`extracted`, meaning nobody has confirmed it, and the interface says so on every card.
 
 It is also told that **returning nothing is the correct answer** when a thread contains
 only corrections and style preferences, because that is most threads. A model that

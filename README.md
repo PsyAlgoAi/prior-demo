@@ -90,6 +90,35 @@ because the thread was requested by number; letting a model write it invites it 
 one, and the source is the only thing that makes an answer believable. `origin` is stamped
 `extracted`, meaning nobody has confirmed it, and the interface says so on every card.
 
+### Or with nothing installed at all
+
+**See a finished record** replays five decisions read out of the real
+`encode/httpx#3022` thread by a person and checked against the final diff. No
+key, no model, no network. Every one carries `origin: confirmed` rather than
+`extracted`, which is the only place in the app where that distinction has an
+example.
+
+`context` is null on all five. The thread argued the choices but never stated
+the condition behind them, and an invented one would make the page look better
+and the system worth less.
+
+A sixth was verified by hand and is not shown. Nothing was weighed against it,
+and the gate says a choice nothing was weighed against is not a decision.
+Exempting our own demo from our own rule would be the cheapest possible way to
+stop believing the rule.
+
+#### A local endpoint from the deployed page
+
+A local model server only answers pages it has been told to allow, so from
+`prior-demo.vercel.app` Ollama refuses the request with a 403 before any model
+runs. The interface says so before you press Run, with the command:
+
+```bash
+OLLAMA_ORIGINS=https://prior-demo.vercel.app ollama serve
+```
+
+Or open the page from a local copy, where nothing needs changing.
+
 ### Or point it at a model on your own machine
 
 The provider is a choice in the interface: Anthropic, OpenAI, or any

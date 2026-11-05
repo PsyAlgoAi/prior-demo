@@ -134,6 +134,14 @@
   .govern{font-family:var(--mono);font-size:12.5px;background:var(--sunken);
           border:1px solid var(--line);border-radius:6px;padding:5px 9px;display:inline-block;
           margin:0 5px 5px 0}
+  .warn{background:var(--temporary-bg);color:var(--temporary);border-radius:8px;
+        padding:11px 13px;font-size:13px;line-height:1.55;margin:4px 0 12px}
+  .warn code{display:block;margin-top:7px;font-family:var(--mono);font-size:12px;
+             background:var(--surface);color:var(--ink);padding:7px 9px;border-radius:6px;
+             word-break:break-all}
+  .capnote{background:var(--adopted-bg);color:var(--adopted);border-radius:8px;
+           padding:11px 13px;font-size:13px;line-height:1.55;margin-bottom:12px}
+  .capnote b{color:var(--adopted)}
   .prov{display:flex;gap:10px;margin-bottom:8px}
   .prov label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:11.5px;
               color:var(--faint);letter-spacing:.03em}
@@ -361,6 +369,7 @@
 <script src="data.js"></script>
 <script src="walkthrough.js"></script>
 <script src="live.js"></script>
+<script src="captured.js"></script>
 <script src="providers.js"></script>
 <script src="model.js"></script>
 <script>
@@ -619,7 +628,8 @@
         <button id="go" ${r.busy?'disabled':''}>${r.busy ? 'Running…' : 'Run'}</button>
       </div>
       <div class="egs"><span class="lb">or try</span>${EGS.map(([rp,n,d])=>
-        `<button data-eg="${rp}|${n}" title="${esc(d)}">${esc(rp)}#${n}</button>`).join('')}</div>
+        `<button data-eg="${rp}|${n}" title="${esc(d)}">${esc(rp)}#${n}</button>`).join('')}
+        <button id="cap" title="A finished record, verified by hand. No key, no model, no network.">see a finished record</button></div>
 
       <details class="tok" ${r.useModel?'open':''}>
         <summary><strong style="color:var(--ember)">Use a real model for the last step</strong>
@@ -643,6 +653,15 @@
             <input id="key" type="password" placeholder="sk-…" aria-label="API key"
               autocomplete="off" value="${esc(r.key||'')}"></label>
         </div>
+
+        ${(window.PriorProviders.PRESETS[r.prov||'anthropic'].local &&
+           location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
+          ? `<div class="warn"><b>This page is not on localhost, so your model server
+             will refuse it.</b> A local server only answers pages it has been told to
+             allow. For Ollama, start it with this origin allowed and run again:
+             <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code>
+             Or open this page from a local copy instead, where nothing needs changing.</div>`
+          : ''}
 
         <p>Without a model the last step runs rules, which can only point at where a
         decision probably is. With one, it reads the thread and returns what was actually
@@ -724,7 +743,18 @@
 
 
   function modelResults(doc, ds){
-    const head = `<h2>${esc(runState.pmodel || window.PriorModel.MODEL)} read ${esc(doc.repo)} #${doc.number}</h2>`;
+    const head = runState.captured
+      ? `<h2>A finished record &middot; ${esc(doc.repo)} #${doc.number}</h2>
+         <div class="capnote"><b>Nothing ran just now.</b> These were read out of the real
+         thread by a person and checked against the final diff, which is why every one says
+         <code>origin: confirmed</code> instead of <code>extracted</code>. It is here so a
+         visitor with no key and no model still sees the shape of the output.<br><br>
+         <b>context is null on all of them.</b> The thread argued the choices but never
+         stated the condition behind them, and an invented one would make this page look
+         better and the system worth less.<br><br>
+         A sixth decision was verified by hand and is not shown: nothing was weighed
+         against it, and the gate says that is not a decision.</div>`
+      : `<h2>${esc(runState.pmodel || window.PriorModel.MODEL)} read ${esc(doc.repo)} #${doc.number}</h2>`;
     if(!ds.length) return head + `<div class="empty">
       <h3>The model found no decision in this discussion</h3>
       <p>It was told that returning nothing is the correct answer when a thread only
@@ -760,7 +790,8 @@
           `<p class="quote">&ldquo;${esc(e.quote.slice(0,320))}${e.quote.length>320?'…':''}&rdquo;</p>
            <p class="src">${esc(e.author)}${e.anchor?' &middot; '+esc(e.anchor):''}</p>`).join('')}
         <p class="src" style="margin-top:10px">origin: ${esc(d.origin||'extracted')}
-          &middot; nobody has confirmed this
+          &middot; ${d.origin === 'confirmed' ? 'checked against the final diff by a person'
+                                             : 'nobody has confirmed this'}
           &middot; confidence: ${esc(d.confidence||'unstated')}</p>
       </div>`).join('') + `</div>
       <div class="realnote"><b>Every quote above is verbatim from the thread.</b> The
@@ -995,6 +1026,19 @@
     const eg = e.target.closest('[data-eg]');
     if(eg){ const [rp,n] = eg.dataset.eg.split('|');
             return doRun(`https://github.com/${rp}/pull/${n}`); }
+    if(e.target.id === 'cap'){
+      // No key, no model, no network. The same renderer, fed a record a person
+      // verified, so a visitor with nothing installed still sees the real shape.
+      const c = window.PriorCaptured;
+      runState = { busy:false, captured:true, lines:[
+          {stage:"captured", text:`${c.repo} #${c.number}`, tone:"ok"},
+          {stage:"verified", text:`${c.decisions.length} decisions, read by hand from the thread`, tone:"ok"}],
+        result:{ doc:{repo:c.repo, number:c.number, title:c.title, merged:c.merged,
+                      comments:[], scope:{}},
+                 decisions:c.decisions, fromModel:true },
+        error:null, target:`https://github.com/${c.repo}/pull/${c.number}` };
+      return render();
+    }
     if(e.target.id === 'go'){
       return doRun(document.getElementById('tgt').value); }
 

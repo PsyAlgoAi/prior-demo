@@ -656,11 +656,15 @@
 
         ${(window.PriorProviders.PRESETS[r.prov||'anthropic'].local &&
            location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
-          ? `<div class="warn"><b>This page is not on localhost, so your model server
-             will refuse it.</b> A local server only answers pages it has been told to
-             allow. For Ollama, start it with this origin allowed and run again:
-             <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code>
-             Or open this page from a local copy instead, where nothing needs changing.</div>`
+          ? `<div class="warn"><b>A local model will not work from this page. Run the
+             page locally instead.</b> The browser blocks a public site from reaching an
+             address on your own machine, and it blocks it before the request is sent, so
+             no setting on the model server can allow it. Allowing the origin on the
+             server is necessary and still not enough:
+             <code>git clone https://github.com/PsyAlgoAi/prior-demo &amp;&amp; cd prior-demo &amp;&amp; python3 -m http.server 8787</code>
+             Then open <b>http://localhost:8787</b>, where the page and the model are on
+             the same machine and nothing needs allowing. A hosted provider works here as
+             normal.</div>`
           : ''}
 
         <p>Without a model the last step runs rules, which can only point at where a

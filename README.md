@@ -107,17 +107,26 @@ and the gate says a choice nothing was weighed against is not a decision.
 Exempting our own demo from our own rule would be the cheapest possible way to
 stop believing the rule.
 
-#### A local endpoint from the deployed page
+#### A local model needs the page to be local too
 
-A local model server only answers pages it has been told to allow, so from
-`prior-demo.vercel.app` Ollama refuses the request with a 403 before any model
-runs. The interface says so before you press Run, with the command:
+This does not work from `prior-demo.vercel.app`, and no server setting fixes it.
+
+Two separate things block it. Ollama answers only origins it has been told to
+allow, and returns `403` to the deployed origin while accepting `localhost`.
+Allowing the origin removes that, and the request still fails with
+`ERR_BLOCKED_BY_CLIENT`: the browser will not let a public page reach an address
+on the user's own machine, and it stops the request before it is sent, so there
+is nothing the model server can do about it.
+
+So for a local model, run the page locally:
 
 ```bash
-OLLAMA_ORIGINS=https://prior-demo.vercel.app ollama serve
+git clone https://github.com/PsyAlgoAi/prior-demo && cd prior-demo && python3 -m http.server 8787
 ```
 
-Or open the page from a local copy, where nothing needs changing.
+Then open `http://localhost:8787`. Page and model are on the same machine and
+nothing needs allowing. The interface says this before Run is pressed. Hosted
+providers work on the deployed page as normal.
 
 ### Or point it at a model on your own machine
 

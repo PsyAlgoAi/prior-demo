@@ -148,6 +148,21 @@ ${comments}
 Return the decisions as JSON.`;
   }
 
+  // A schema is a request, not a guarantee. Older responses returned scope as
+  // bare strings, and a card that renders "undefined" in front of someone is a
+  // worse failure than one that renders a slightly plainer pointer.
+  function normaliseScope(scope, repo){
+    return (Array.isArray(scope) ? scope : [])
+      .map(s => {
+        if(typeof s === "string")
+          return { target: /^[a-z]+:/.test(s) ? s : `repo:${repo}/${s}`, kind: "code" };
+        if(s && typeof s.target === "string")
+          return { target: s.target, kind: s.kind || "code" };
+        return null;
+      })
+      .filter(Boolean);
+  }
+
   async function extract(doc, key, log){
     log("model", `${MODEL} reading ${doc.comments.length} comments`, "run");
 
@@ -201,6 +216,8 @@ Return the decisions as JSON.`;
     // nobody has confirmed this yet, and the interface has to say so.
     return parsed.decisions.map((d,i) => ({
       ...d,
+      scope: normaliseScope(d.scope, doc.repo),
+      alternatives: (d.alternatives || []).filter(a => a && a.option),
       id: `${doc.repo}#${doc.number}-${i+1}`,
       pr: doc.number,
       source: `${doc.repo}#${doc.number}`,

@@ -134,6 +134,12 @@
   .govern{font-family:var(--mono);font-size:12.5px;background:var(--sunken);
           border:1px solid var(--line);border-radius:6px;padding:5px 9px;display:inline-block;
           margin:0 5px 5px 0}
+  .prov{display:flex;gap:10px;margin-bottom:8px}
+  .prov label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:11.5px;
+              color:var(--faint);letter-spacing:.03em}
+  .prov .opt{text-transform:none;letter-spacing:0;font-size:11px}
+  .prov select,.prov input{width:100%;font:inherit;font-size:13px;padding:7px 9px;
+    border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
   .govern .w{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
   .revisit{background:var(--temporary-bg);color:var(--temporary);border-radius:7px;
            padding:9px 12px;font-size:13px;font-weight:500}
@@ -355,6 +361,7 @@
 <script src="data.js"></script>
 <script src="walkthrough.js"></script>
 <script src="live.js"></script>
+<script src="providers.js"></script>
 <script src="model.js"></script>
 <script>
 (function(){
@@ -616,16 +623,43 @@
 
       <details class="tok" ${r.useModel?'open':''}>
         <summary><strong style="color:var(--ember)">Use a real model for the last step</strong>
-          &nbsp;&middot;&nbsp; paste an Anthropic API key</summary>
-        <input id="key" type="password" placeholder="sk-ant-…" aria-label="Anthropic API key"
-          autocomplete="off" value="${esc(r.key||'')}">
-        <p>Without a key the last step runs rules, which can only point at where a
-        decision probably is. With one, <b>${esc(window.PriorModel.MODEL)}</b> reads the
-        thread and returns what was actually decided, or returns nothing, which is the
-        right answer for most pull requests.<br><br>
-        The key stays in this tab and is sent to api.anthropic.com and nowhere else.
-        <b>This page has no server.</b> One run costs a few cents. Use a key with a low
-        spend limit, and revoke it when you are done.</p>
+          &nbsp;&middot;&nbsp; hosted, or one running on your own machine</summary>
+
+        <div class="prov">
+          <label>Provider
+            <select id="prov" aria-label="Model provider">${
+              Object.entries(window.PriorProviders.PRESETS).map(([k,v]) =>
+                `<option value="${k}"${k===(r.prov||'anthropic')?' selected':''}>${esc(v.label)}</option>`
+              ).join('')}</select></label>
+          <label>Model
+            <input id="pmodel" placeholder="model name" autocomplete="off"
+              value="${esc(r.pmodel ?? window.PriorProviders.PRESETS[r.prov||'anthropic'].model)}"></label>
+        </div>
+        <div class="prov">
+          <label>Endpoint
+            <input id="pbase" placeholder="https://…" autocomplete="off" spellcheck="false"
+              value="${esc(r.pbase ?? window.PriorProviders.PRESETS[r.prov||'anthropic'].baseUrl)}"></label>
+          <label>Key <span class="opt">optional for a local one</span>
+            <input id="key" type="password" placeholder="sk-…" aria-label="API key"
+              autocomplete="off" value="${esc(r.key||'')}"></label>
+        </div>
+
+        <p>Without a model the last step runs rules, which can only point at where a
+        decision probably is. With one, it reads the thread and returns what was actually
+        decided, or returns nothing, which is the right answer for most pull requests.
+        <br><br>
+        <b>Stage 3 is the only step that touches a network</b>, so it is the only one that
+        has to be swappable. Point it at <b>Ollama, vLLM or LM Studio</b> and the whole
+        pipeline runs on your machine, which is the only form a company that will not let
+        its code leave the building can use.<br><br>
+        It is also the bench. The production answer is a small fine-tuned model, because at
+        a frontier model's price per thread per repository there is no product, and the
+        question worth measuring is how much quality a small one gives up. Swapping the
+        endpoint is how that gets measured on one fixed task.<br><br>
+        Nothing is sent anywhere except the endpoint above. <b>This page has no server.</b>
+        A hosted run costs a few cents; use a key with a low spend limit and revoke it
+        after. A local one costs nothing and needs the server started with this page's
+        origin allowed.</p>
       </details>
 
       <details class="tok"><summary>Hitting the GitHub rate limit? Add a GitHub token</summary>
@@ -690,7 +724,7 @@
 
 
   function modelResults(doc, ds){
-    const head = `<h2>${window.PriorModel.MODEL} read ${esc(doc.repo)} #${doc.number}</h2>`;
+    const head = `<h2>${esc(runState.pmodel || window.PriorModel.MODEL)} read ${esc(doc.repo)} #${doc.number}</h2>`;
     if(!ds.length) return head + `<div class="empty">
       <h3>The model found no decision in this discussion</h3>
       <p>It was told that returning nothing is the correct answer when a thread only
@@ -788,19 +822,28 @@
     const t = window.PriorLive.parseTarget(target);
     if(!t){ runState.error = "I could not read that. Paste a repository, like https://github.com/encode/httpx, or a single pull request.";
             runState.result = null; runState.lines = []; return render(); }
-    const tokEl = document.getElementById('tok');
-    const keyEl = document.getElementById('key');
-    const token = tokEl ? tokEl.value : "";
-    const key   = keyEl ? keyEl.value.trim() : "";
-    runState = { busy:true, key, useModel: !!key, lines:[{stage:"starting", text: t.number ? `${t.repo} #${t.number}` : t.repo, tone:"run"}],
+    const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ""; };
+    const token  = val('tok');
+    const key    = val('key');
+    const prov   = val('prov') || 'anthropic';
+    const preset = window.PriorProviders.PRESETS[prov];
+    const pmodel = val('pmodel') || preset.model;
+    const pbase  = val('pbase')  || preset.baseUrl;
+    // A hosted provider is only used when a key is present. A local one needs
+    // none, so an endpoint and a model name are enough to run it.
+    const cfg = { ...preset, key, model: pmodel, baseUrl: pbase };
+    const useModel = preset.needsKey ? !!key : !!(pmodel && pbase);
+
+    runState = { busy:true, key, prov, pmodel, pbase, cfg, useModel,
+                 lines:[{stage:"starting", text: t.number ? `${t.repo} #${t.number}` : t.repo, tone:"run"}],
                  result:null, error:null, target };
     render();
     const log = (stage, text, tone) => { runState.lines.push({stage, text, tone}); render(); };
     try{
       if(t.number){
         const out = await window.PriorLive.run(t.repo, t.number, token, log);
-        if(key){
-          out.decisions = await window.PriorModel.extract(out.doc, key, log);
+        if(useModel){
+          out.decisions = await window.PriorModel.extract(out.doc, cfg, log);
           out.fromModel = true;
         }
         runState.result = out;
@@ -916,12 +959,30 @@
       b.setAttribute('aria-current', String(b.dataset.v === view)));
     const typed = document.getElementById('tgt');
     if(typed && view === 'try' && !runState.busy) runState.target = typed.value;
-    const k = document.getElementById('key');
-    if(k && view === 'try' && !runState.busy && k.value) runState.key = k.value;
+    if(view === 'try' && !runState.busy){
+      for(const [id, prop] of [['key','key'], ['pmodel','pmodel'], ['pbase','pbase']]){
+        const el = document.getElementById(id);
+        if(el && el.value) runState[prop] = el.value;
+      }
+    }
     main.innerHTML = ({tour, try:tryView, overview, decisions, coverage, people, alerts})[view]();
     main.scrollTop = 0;
   }
 
+  main.addEventListener('change', e => {
+    if(e.target.id !== 'prov') return;
+    // Changing the provider refills the endpoint and model from that preset, so
+    // a local run is a choice from a list rather than a URL to remember.
+    const pr = window.PriorProviders.PRESETS[e.target.value];
+    runState.prov  = e.target.value;
+    runState.pbase = pr.baseUrl;
+    runState.pmodel = pr.model;
+    // render() reads the live inputs back into runState so typing survives a
+    // repaint, which would undo what was just set. Write the fields first.
+    document.getElementById('pbase').value  = pr.baseUrl;
+    document.getElementById('pmodel').value = pr.model;
+    render();
+  });
   main.addEventListener('keydown', e => {
     if(e.key === 'Enter' && e.target.id === 'tgt'){ e.preventDefault(); doRun(e.target.value); }
   });
@@ -936,6 +997,7 @@
             return doRun(`https://github.com/${rp}/pull/${n}`); }
     if(e.target.id === 'go'){
       return doRun(document.getElementById('tgt').value); }
+
     const f = e.target.closest('[data-f]');
     if(f){ filter = f.dataset.f; open = null; return render(); }
     const r = e.target.closest('.row');

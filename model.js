@@ -163,53 +163,29 @@ Return the decisions as JSON.`;
       .filter(Boolean);
   }
 
-  async function extract(doc, key, log){
-    log("model", `${MODEL} reading ${doc.comments.length} comments`, "run");
+  // cfg is a provider from PriorProviders: an adapter, a base URL, a model
+  // name and optionally a key. A plain string is still accepted and read as an
+  // Anthropic key, so an older call site keeps working.
+  function asConfig(cfg){
+    if(typeof cfg === "string" || !cfg)
+      return { ...window.PriorProviders.PRESETS.anthropic, key: cfg || "" };
+    return cfg;
+  }
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key.trim(),
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 8000,
-        system: SYSTEM,
-        thinking: { type: "adaptive" },
-        output_config: {
-          effort: "medium",
-          format: { type: "json_schema", schema: SCHEMA }
-        },
-        messages: [{ role: "user", content: userMessage(doc) }]
-      })
-    });
+  async function extract(doc, cfg, log){
+    const p = asConfig(cfg);
+    log("model", `${p.model} reading ${doc.comments.length} comments` +
+                 (p.local ? " on this machine" : ""), "run");
 
-    if(!res.ok){
-      let detail = "";
-      try{ const e = await res.json(); detail = e?.error?.message || ""; }catch(_){}
-      if(res.status === 401) throw new Error("That API key was rejected. Check it starts with sk-ant- and has not been revoked.");
-      if(res.status === 429) throw new Error("Rate limited by the API. Wait a moment and run it again.");
-      if(res.status === 400 && /credit|balance/i.test(detail)) throw new Error("The account behind that key has no credit.");
-      throw new Error(`The API returned ${res.status}. ${detail}`.trim());
-    }
+    const out = await window.PriorProviders.call(
+      p, SYSTEM, SCHEMA, userMessage(doc), log);
+    const parsed = { decisions: out.decisions };
+    const u = { input_tokens: out.usage?.in, output_tokens: out.usage?.out };
 
-    const msg = await res.json();
-    if(msg.stop_reason === "refusal")
-      throw new Error("The model declined this request.");
-
-    const text = (msg.content || []).filter(b => b.type === "text")
-                                    .map(b => b.text).join("");
-    let parsed;
-    try{ parsed = JSON.parse(text); }
-    catch(_){ throw new Error("The model did not return valid JSON. This is exactly the failure the schema-validity metric measures."); }
-
-    const u = msg.usage || {};
     log("model",
       `${parsed.decisions.length} decision${parsed.decisions.length===1?"":"s"} ` +
-      `· ${u.input_tokens||"?"} in, ${u.output_tokens||"?"} out`,
+      `· ${u.input_tokens||"?"} in, ${u.output_tokens||"?"} out` +
+      (out.repaired ? " · needed a repair pass" : ""),
       parsed.decisions.length ? "ok" : "warn");
 
     // origin is stamped here, never asked of the model. "extracted" means

@@ -90,6 +90,35 @@ because the thread was requested by number; letting a model write it invites it 
 one, and the source is the only thing that makes an answer believable. `origin` is stamped
 `extracted`, meaning nobody has confirmed it, and the interface says so on every card.
 
+### Or point it at a model on your own machine
+
+The provider is a choice in the interface: Anthropic, OpenAI, or any
+OpenAI-compatible endpoint, which covers **Ollama, vLLM, LM Studio, llama.cpp,
+Together and OpenRouter**. Pick one and the endpoint and model name fill in.
+
+Stage 3 is the only step that touches a network, so it is the only one that has
+to be swappable. Point it at `localhost` and the entire pipeline runs on the
+machine, which is the only shape a company that will not let its code leave the
+building can use.
+
+It is also the bench. The production answer is a small fine-tuned model, because
+at a frontier model's price per thread per repository there is no product, and
+the question worth measuring is how much quality a small one gives up on one
+fixed task.
+
+A smaller model will return prose, or a fenced block, or JSON with a field
+missing, far more often than a frontier one. The response is unwrapped, checked
+against the schema, and retried exactly once with the failure quoted back; the
+run log says when that repair pass was needed, because how often it is needed is
+a measurement, not a detail.
+
+Measured on a local `llama3:8b`, on a thread carrying one real decision and one
+nitpick: it kept the decision and dropped the nitpick, in 18 seconds with no
+network. It also named the rejected option "go higher" where the thread said
+"5", and attached the decision to a second file it never touched. **The gate
+survives at 8B. The precision does not.** That gap is the number the
+distillation work exists to close.
+
 It is also told that **returning nothing is the correct answer** when a thread contains
 only corrections and style preferences, because that is most threads. A model that
 always finds something is useless.
